@@ -1,4 +1,4 @@
-from numpy import exp, meshgrid, sum, linspace, diff
+from numpy import exp, meshgrid, sum, linspace, diff, ones
 from numpy.random import rand, randint
 import matplotlib.pyplot as plt
 from matplotlib import colors
@@ -14,7 +14,15 @@ class Ising:
         self.temperature = temperature
         self.lattice = lattice
         self.iterations = iterations
-        self.plots = plots
+
+        if plots:
+            if plots == "animate":
+                self.plots = True
+                self.animate = True
+            else:
+                self.plots = True
+        else:
+            self.plots = False
 
         if mesh == "ortho":
             self.mesh = "ortho"
@@ -57,7 +65,10 @@ class Ising:
                     energy += -nb * S
                 elif self.prop == "antiferro":
                     energy += nb * S
-        return energy / 6.0
+        if self.mesh == "hex":
+            return energy / 6.0
+        elif self.mesh == "ortho":
+            return energy / 4.0
 
     # magnetization of crystal
     def M(self, crystal):
@@ -106,16 +117,20 @@ class Ising:
         M = 0
         crystal = 2 * randint(2, size=(self.lattice, self.lattice)) - 1
 
-        if self.plots and self.mesh == "hex":
+        if self.plots and (not self.animate) and self.mesh == "hex":
             f = plt.figure(figsize=(15, 15))
             self.configPlotHex(f, crystal, 0, self.lattice, 1)
-        elif self.plots and self.mesh == "ortho":
+        elif self.plots and (not self.animate) and self.mesh == "ortho":
             f = plt.figure(figsize=(15, 15))
             self.configPlot(f, crystal, 0, self.lattice, 1)
+        elif self.plots and (self.animate) and self.mesh == "hex":
+            self.savePlotHex(crystal, 0, self.lattice)
+        elif self.plots and (self.animate) and self.mesh == "ortho":
+            self.savePlot(crystal, 0, self.lattice)
 
         for i in range(self.iterations):
             self.mcStep(crystal, self.lattice, 1.0 / self.temperature)
-            if self.plots and self.mesh == "hex":
+            if self.plots and (not self.animate) and self.mesh == "hex":
                 if i == 1:
                     self.configPlotHex(f, crystal, i, self.lattice, 2)
                 if i == 4:
@@ -126,7 +141,7 @@ class Ising:
                     self.configPlotHex(f, crystal, i, self.lattice, 5)
                 if i == self.iterations - 1:
                     self.configPlotHex(f, crystal, i, self.lattice, 6)
-            elif self.plots and self.mesh == "ortho":
+            elif self.plots and (not self.animate) and self.mesh == "ortho":
                 if i == 1:
                     self.configPlot(f, crystal, i, self.lattice, 2)
                 if i == 4:
@@ -137,6 +152,10 @@ class Ising:
                     self.configPlot(f, crystal, i, self.lattice, 5)
                 if i == self.iterations - 1:
                     self.configPlot(f, crystal, i, self.lattice, 6)
+            elif self.plots and (self.animate) and self.mesh == "hex":
+                self.savePlotHex(crystal, i, self.lattice)
+            elif self.plots and (self.animate) and self.mesh == "ortho":
+                self.savePlot(crystal, i, self.lattice)
             E += self.E(crystal, self.lattice)
             M += self.M(crystal)
 
@@ -185,3 +204,46 @@ class Ising:
         plt.pcolormesh(X, Y, crystal, cmap=plt.cm.binary)
         plt.title("Time=%d" % i)
         plt.axis("tight")
+
+    # configure hex plot
+    def savePlotHex(self, crystal, i, lattice):
+        nx = lattice
+        ny = lattice
+        cmap = colors.ListedColormap(["black", "white"])
+        bounds = [0, 1, 2]
+        norm = colors.BoundaryNorm(bounds, cmap.N)
+        x = linspace(0, 1, nx)
+        y = linspace(0, 1, ny)
+
+        dx = diff(x)[0]
+
+        patches = []
+        for k in x:
+            for n, j in enumerate(y):
+                if n % 2:
+                    polygon = mpatches.RegularPolygon([k - dx / 2.0, j], 6, 0.6 * dx)
+                else:
+                    polygon = mpatches.RegularPolygon([k, j], 6, 0.6 * dx)
+                patches.append(polygon)
+
+        collection = PatchCollection(patches, cmap=cmap, norm=norm, alpha=1.0)
+
+        fig, ax = plt.subplots(1, 1)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.add_collection(collection)
+        collection.set_array(crystal.ravel())
+        ax.set_title("Time=%d" % i)
+        ax.axis("tight")
+        fig.savefig(f"Animation/{i:04d}.png")
+
+    # make a single plot
+    def savePlot(self, crystal, i, lattice):
+        fig, ax = plt.subplots(1, 1)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        X, Y = meshgrid(range(lattice), range(lattice))
+        ax.pcolormesh(X, Y, crystal, cmap=plt.cm.binary)
+        ax.set_title("Time=%d" % i)
+        ax.axis("tight")
+        fig.savefig(f"Animation/{i:04d}.png")

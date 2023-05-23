@@ -17,7 +17,7 @@ if __name__ == "__main__":
     temperature_points = 1000
 
     df = pd.DataFrame(columns=["Temperature", "Energy", "Magnetization"])
-    T_sample = linspace(0.01, 5.5, temperature_points)
+    T_sample = linspace(0.01, 1.5, temperature_points)
 
     with Pool() as pool:
         for result in pool.imap(make_whole_simulation, T_sample):
