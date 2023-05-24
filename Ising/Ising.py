@@ -413,10 +413,14 @@ class Ising:
         for yi, yy in enumerate(y):
             if self.IsEven(yi):
                 if self.IsEven(lattice):
-                    xx = linspace(0.5, 0.5 + (lattice / 2.0), int(round((lattice / 2) + 1)))
+                    xx = linspace(
+                        0.5, 0.5 + (lattice / 2.0), int(round((lattice / 2) + 1))
+                    )
                 else:
                     xx = linspace(
-                        0.5, 0.5 + ((lattice - 1) / 2.0), int(round(((lattice - 1) / 2) + 1))
+                        0.5,
+                        0.5 + ((lattice - 1) / 2.0),
+                        int(round(((lattice - 1) / 2) + 1)),
                     )
             else:
                 if self.IsEven(lattice):
