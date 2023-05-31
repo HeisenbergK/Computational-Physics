@@ -9,6 +9,17 @@ from collections import Counter
 
 
 class Ising:
+    """
+    Ising Model class.
+    We take in init:
+        temperature: the temperature of the crystal in our own units
+        lattice: the lattice size (always a square shape)
+        iterations: the iterations the user wants to run in modeling
+        mesh: the lattice shape (ortho/hex)
+        prop: the phenomenon of the lattice (ferro/antiferro)
+        plots: whether the user wants plots (True), no plots (False) or animation (animate)
+    """
+
     # initialization
     def __init__(
         self, temperature, lattice, iterations, mesh="ortho", prop="ferro", plots=True
@@ -16,6 +27,8 @@ class Ising:
         self.temperature = temperature
         self.lattice = lattice
         self.iterations = iterations
+        # Initialize crystal with random up/down (1/-1) spins
+        self.crystal = 2 * randint(2, size=(lattice, lattice)) - 1
 
         if plots:
             if plots == "animate":
@@ -32,8 +45,6 @@ class Ising:
             self.mesh = "ortho"
         elif mesh == "hex":
             self.mesh = "hex"
-        elif mesh == "tri":
-            self.mesh = "tri"
         else:
             raise Exception("Incorrect mesh")
 
@@ -44,206 +55,166 @@ class Ising:
         else:
             raise Exception("Incorrect property")
 
-    # is value even
+    # Is x even
     def IsEven(self, x):
         if x % 2:
             return False
         else:
             return True
 
-    # in a triangular model, get the corners from x and y
-    def CornersFromXY(self, x, y):
-        if self.IsEven(x):
-            if self.IsEven(y):
-                return [[x + 1, y], [x, y + 1], [x + 2, y + 1]]
-            else:
-                return [[x + 1, y + 1], [x, y], [x + 2, y]]
-        else:
-            if self.IsEven(y):
-                return [[x + 1, y + 1], [x, y], [x + 2, y]]
-            else:
-                return [[x + 1, y], [x, y + 1], [x + 2, y + 1]]
-
-    # energy of the crystal
-    def E(self, crystal, lattice):
-        energy = 0
-        for i in range(len(crystal)):
-            for j in range(len(crystal)):
-                S = crystal[i, j]
-                nb = 0
+    # Energy of a given crystal state
+    def E(self):
+        lattice = self.lattice  # I'm lazy
+        energy = 0  # initialize energy
+        # loop into all crystal positions
+        for i in range(len(self.crystal)):
+            for j in range(len(self.crystal)):
+                S = self.crystal[i, j]  # valye at xy
+                nb = 0  # initialize the sum of the values of neighbors
+                # add the value of each neighbor to the sum, depending on the mesh shape
                 if self.mesh == "ortho" or self.mesh == "hex":
                     nb += (
-                        crystal[(i + 1) % lattice, j]
-                        + crystal[i, (j + 1) % lattice]
-                        + crystal[(i - 1) % lattice, j]
-                        + crystal[i, (j - 1) % lattice]
+                        self.crystal[(i + 1) % lattice, j]
+                        + self.crystal[i, (j + 1) % lattice]
+                        + self.crystal[(i - 1) % lattice, j]
+                        + self.crystal[i, (j - 1) % lattice]
                     )
                 if self.mesh == "hex" and (self.IsEven(i + 1)):
                     nb += (
-                        crystal[(i - 1) % lattice, (j - 1) % lattice]
-                        + crystal[(i + 1) % lattice, (j - 1) % lattice]
+                        self.crystal[(i - 1) % lattice, (j - 1) % lattice]
+                        + self.crystal[(i + 1) % lattice, (j - 1) % lattice]
                     )
                 elif self.mesh == "hex":
                     nb += (
-                        crystal[(i + 1) % lattice, (j + 1) % lattice]
-                        + crystal[(i - 1) % lattice, (j + 1) % lattice]
+                        self.crystal[(i + 1) % lattice, (j + 1) % lattice]
+                        + self.crystal[(i - 1) % lattice, (j + 1) % lattice]
                     )
 
-                if self.mesh == "tri" and (self.IsEven(i + j)):
-                    nb += (
-                        crystal[(i - 1) % lattice, j]
-                        + crystal[(i + 1) % lattice, j]
-                        + crystal[i, (j + 1) % lattice]
-                    )
-                elif self.mesh == "tri ":
-                    nb += (
-                        crystal[(i - 1) % lattice, j]
-                        + crystal[(i + 1) % lattice, j]
-                        + crystal[i, (j - 1) % lattice]
-                    )
-
+                # add the appropriate value to the running sum
                 if self.prop == "ferro":
                     energy += -nb * S
                 elif self.prop == "antiferro":
                     energy += nb * S
+
+        # divide by the degrees of freedom to acquire a comparable value
         if self.mesh == "hex":
             return energy / 6.0
         elif self.mesh == "ortho":
             return energy / 4.0
-        elif self.mesh == "tri":
-            return energy / 3.0
 
-    # magnetization of crystal
-    def M(self, crystal):
-        mag = sum(crystal)
+    # Magnetization of a given crystal state
+    def M(self):
+        mag = sum(self.crystal)
         return mag
 
-    # monte carlo steps
-    def mcStep(self, crystal, lattice, beta):
+    # Metropolis MCMC step
+    def mcStep(self):
+        beta = 1.0 / self.temperature  # beta parameter, units k_B=J=1
+        lattice = self.lattice  # I'm lazy
         for i in range(lattice):
             for j in range(lattice):
-                a = randint(0, lattice)
-                b = randint(0, lattice)
-                s = crystal[a, b]
-                nb = 0
+                a = randint(0, lattice)  # random x-coordinate in the lattice
+                b = randint(0, lattice)  # random y-coordinate in the lattice
+                s = self.crystal[a, b]  # value of the crystal at xy
+                nb = 0  # initialize the sum of the values of neighbors
+                # add the value of each neighbor to the sum, depending on the mesh shape
                 if self.mesh == "ortho" or self.mesh == "hex":
                     nb += (
-                        crystal[(a + 1) % lattice, b]
-                        + crystal[a, (b + 1) % lattice]
-                        + crystal[(a - 1) % lattice, b]
-                        + crystal[a, (b - 1) % lattice]
+                        self.crystal[(a + 1) % lattice, b]
+                        + self.crystal[a, (b + 1) % lattice]
+                        + self.crystal[(a - 1) % lattice, b]
+                        + self.crystal[a, (b - 1) % lattice]
                     )
                 if self.mesh == "hex" and (self.IsEven(a + 1)):
                     nb += (
-                        crystal[(a - 1) % lattice, (b - 1) % lattice]
-                        + crystal[(a + 1) % lattice, (b - 1) % lattice]
+                        self.crystal[(a - 1) % lattice, (b - 1) % lattice]
+                        + self.crystal[(a + 1) % lattice, (b - 1) % lattice]
                     )
                 elif self.mesh == "hex":
                     nb += (
-                        crystal[(a + 1) % lattice, (b + 1) % lattice]
-                        + crystal[(a - 1) % lattice, (b + 1) % lattice]
+                        self.crystal[(a + 1) % lattice, (b + 1) % lattice]
+                        + self.crystal[(a - 1) % lattice, (b + 1) % lattice]
                     )
 
-                if self.mesh == "tri" and (self.IsEven(a + b)):
-                    nb += (
-                        crystal[(a - 1) % lattice, b]
-                        + crystal[(a + 1) % lattice, b]
-                        + crystal[a, (b + 1) % lattice]
-                    )
-                elif self.mesh == "tri ":
-                    nb += (
-                        crystal[(a - 1) % lattice, b]
-                        + crystal[(a + 1) % lattice, b]
-                        + crystal[a, (b - 1) % lattice]
-                    )
-
+                # compute the cost metric (energy gain/loss if spin at xy is swapped)
                 if self.prop == "ferro":
                     metric = 2 * s * nb
                 elif self.prop == "antiferro":
                     metric = -2 * s * nb
 
+                # if the cost is negative, make the swap
                 if metric < 0:
                     s *= -1
+                # if the cost isnt negative, make the swap only if thermal beats hamilton
                 elif rand() < exp(-metric * beta):
                     s *= -1
-                crystal[a, b] = s
-        return crystal
+                # assign change
+                self.crystal[a, b] = s
 
-    # simulate the crystal
+    # Simulate the crystal
     def simulate(self):
-        E = 0
-        M = 0
-        crystal = 2 * randint(2, size=(self.lattice, self.lattice)) - 1
+        E = 0  # Initialize energy
+        M = 0  # Initialize magnetization
 
+        # If plots, add initial state to plot, if animation, save initial frame
         if self.plots and (not self.animate) and self.mesh == "hex":
             f = plt.figure(figsize=(15, 15))
-            self.configPlotHex(f, crystal, 0, self.lattice, 1)
+            self.configPlotHex(f, 0, 1)
         elif self.plots and (not self.animate) and self.mesh == "ortho":
             f = plt.figure(figsize=(15, 15))
-            self.configPlot(f, crystal, 0, self.lattice, 1)
-        elif self.plots and (not self.animate) and self.mesh == "tri":
-            f = plt.figure(figsize=(15, 15))
-            self.configPlotTri(f, crystal, 0, self.lattice, 1)
+            self.configPlot(f, 0, 1)
         elif self.plots and (self.animate) and self.mesh == "hex":
-            self.savePlotHex(crystal, 0, self.lattice)
+            self.savePlotHex(0)
         elif self.plots and (self.animate) and self.mesh == "ortho":
-            self.savePlot(crystal, 0, self.lattice)
-        elif self.plots and (self.animate) and self.mesh == "tri":
-            self.savePlotTri(crystal, 0, self.lattice)
+            self.savePlot(0)
 
+        # Loop Metropolis iteration times
         for i in range(self.iterations):
-            self.mcStep(crystal, self.lattice, 1.0 / self.temperature)
+            # do one step to the crystal
+            self.mcStep()
+
+            # If plots, add plot at times 1,4,32,100,iterations end, if animation, save frame at every iteration
             if self.plots and (not self.animate) and self.mesh == "hex":
                 if i == 1:
-                    self.configPlotHex(f, crystal, i, self.lattice, 2)
+                    self.configPlotHex(f, i, 2)
                 if i == 4:
-                    self.configPlotHex(f, crystal, i, self.lattice, 3)
+                    self.configPlotHex(f, i, 3)
                 if i == 32:
-                    self.configPlotHex(f, crystal, i, self.lattice, 4)
+                    self.configPlotHex(f, i, 4)
                 if i == 100:
-                    self.configPlotHex(f, crystal, i, self.lattice, 5)
+                    self.configPlotHex(f, i, 5)
                 if i == self.iterations - 1:
-                    self.configPlotHex(f, crystal, i, self.lattice, 6)
+                    self.configPlotHex(f, i, 6)
             elif self.plots and (not self.animate) and self.mesh == "ortho":
                 if i == 1:
-                    self.configPlot(f, crystal, i, self.lattice, 2)
+                    self.configPlot(f, i, 2)
                 if i == 4:
-                    self.configPlot(f, crystal, i, self.lattice, 3)
+                    self.configPlot(f, i, 3)
                 if i == 32:
-                    self.configPlot(f, crystal, i, self.lattice, 4)
+                    self.configPlot(f, i, 4)
                 if i == 100:
-                    self.configPlot(f, crystal, i, self.lattice, 5)
+                    self.configPlot(f, i, 5)
                 if i == self.iterations - 1:
-                    self.configPlot(f, crystal, i, self.lattice, 6)
-            elif self.plots and (not self.animate) and self.mesh == "tri":
-                if i == 1:
-                    self.configPlotTri(f, crystal, i, self.lattice, 2)
-                if i == 4:
-                    self.configPlotTri(f, crystal, i, self.lattice, 3)
-                if i == 32:
-                    self.configPlotTri(f, crystal, i, self.lattice, 4)
-                if i == 100:
-                    self.configPlotTri(f, crystal, i, self.lattice, 5)
-                if i == self.iterations - 1:
-                    self.configPlotTri(f, crystal, i, self.lattice, 6)
+                    self.configPlot(f, i, 6)
             elif self.plots and (self.animate) and self.mesh == "hex":
-                self.savePlotHex(crystal, i, self.lattice)
+                self.savePlotHex(i)
             elif self.plots and (self.animate) and self.mesh == "ortho":
-                self.savePlot(crystal, i, self.lattice)
-            elif self.plots and (self.animate) and self.mesh == "tri":
-                self.savePlotTri(crystal, i, self.lattice)
-            E += self.E(crystal, self.lattice)
-            M += self.M(crystal)
+                self.savePlot(i)
 
+            E += self.E()  # add energy to total
+            M += self.M()  # add magnetization to total
+
+        # show the plots if done
         if self.plots:
             plt.show()
 
+        # return the energy and magnetization for set temperature, after all iterations
         return [E, M]
 
     # configure hex plot
-    def configPlotHex(self, f, crystal, i, lattice, n_):
-        nx = lattice
-        ny = lattice
+    def configPlotHex(self, f, i, n_):
+        nx = self.lattice
+        ny = self.lattice
         cmap = colors.ListedColormap(["black", "white"])
         bounds = [0, 1, 2]
         norm = colors.BoundaryNorm(bounds, cmap.N)
@@ -267,106 +238,24 @@ class Ising:
         sp.set_xticks([])
         sp.set_yticks([])
         sp.add_collection(collection)
-        collection.set_array(crystal.ravel())
-        sp.set_title("Time=%d" % i)
-        sp.axis("tight")
-
-    # configure tri plot
-    def configPlotTri(self, f, crystal, i, lattice, n_):
-        y = linspace(0, lattice * sqrt(3.0) / 2.0, lattice + 1)
-        x = []
-        for yi, yy in enumerate(y):
-            if self.IsEven(yi):
-                if self.IsEven(lattice):
-                    xx = linspace(
-                        0.5, 0.5 + (lattice / 2.0), int(round((lattice / 2) + 1))
-                    )
-                else:
-                    xx = linspace(
-                        0.5,
-                        0.5 + ((lattice - 1) / 2.0),
-                        int(round(((lattice - 1) / 2) + 1)),
-                    )
-            else:
-                if self.IsEven(lattice):
-                    xx = linspace(0, (lattice / 2.0), int(round((lattice / 2) + 1)))
-                else:
-                    xx = linspace(
-                        0, ((lattice + 1) / 2.0), int(round(((lattice + 1) / 2) + 1))
-                    )
-            x.append(xx)
-        xy = []
-        for ii in range(0, len(y)):
-            xx = x[ii]
-            yy = y[ii]
-            for j in range(0, len(xx)):
-                xy.append([xx[j], yy])
-        xy = asarray(xy)
-        xx = xy[:, 0]
-        yy = xy[:, 1]
-        triangulation = tri.Triangulation(xx, yy)
-
-        triangles = triangulation.triangles
-        countervalue = []
-        for triangle in triangles:
-            if any(count > 1 for count in Counter(xx[triangle]).values()):
-                countervalue.append(False)
-            else:
-                countervalue.append(True)
-        triangles = [
-            triangles[ii] for ii in range(0, len(triangles)) if countervalue[ii]
-        ]
-        triangulation.triangles = triangles
-
-        better_triangles = []
-        for triangle in triangles:
-            xtri = round(xx[triangle] / 0.5).astype(int)
-            ytri = round(yy[triangle] / (sqrt(3.0) / 2.0)).astype(int)
-            tricoos = [[xtri[ii], ytri[ii]] for ii in range(3)]
-            better_triangles.append(tricoos)
-
-        crystallist = []
-        my_tri_list = []
-        for ii in range(lattice):
-            for j in range(lattice):
-                crystallist.append(crystal[ii, j])
-                corners = self.CornersFromXY(ii, j)
-                for k in range(len(better_triangles)):
-                    if (
-                        (corners[0] in better_triangles[k])
-                        and (corners[1] in better_triangles[k])
-                        and (corners[2] in better_triangles[k])
-                    ):
-                        my_tri_list.append(k)
-                        break
-
-        facecolors = empty(len(triangles))
-        facecolors[:] = nan
-        for ii in range(len(crystallist)):
-            facecolors[my_tri_list[ii]] = crystallist[ii]
-
-        sp = f.add_subplot(3, 3, n_)
-        sp.tripcolor(triangulation, facecolors=facecolors, cmap=plt.cm.binary)
-        sp.triplot(triangulation, lw=0.5, color="k")
-        sp.set_xticks([])
-        sp.set_yticks([])
+        collection.set_array(self.crystal.ravel())
         sp.set_title("Time=%d" % i)
         sp.axis("tight")
 
     # make a single plot
-    def configPlot(self, f, crystal, i, lattice, n_):
-        X, Y = meshgrid(range(lattice), range(lattice))
+    def configPlot(self, f, i, n_):
+        X, Y = meshgrid(range(self.lattice), range(self.lattice))
         sp = f.add_subplot(3, 3, n_)
         plt.setp(sp.get_yticklabels(), visible=False)
         plt.setp(sp.get_xticklabels(), visible=False)
-        plt.pcolormesh(X, Y, crystal, cmap=plt.cm.binary)
+        plt.pcolormesh(X, Y, self.crystal, cmap=plt.cm.binary)
         plt.title("Time=%d" % i)
         plt.axis("tight")
 
     # configure hex plot
-    def savePlotHex(self, crystal, i, lattice):
-        nx = lattice
-        ny = lattice
+    def savePlotHex(self, i):
+        nx = self.lattice
+        ny = self.lattice
         cmap = colors.ListedColormap(["black", "white"])
         bounds = [0, 1, 2]
         norm = colors.BoundaryNorm(bounds, cmap.N)
@@ -390,101 +279,18 @@ class Ising:
         ax.set_xticks([])
         ax.set_yticks([])
         ax.add_collection(collection)
-        collection.set_array(crystal.ravel())
+        collection.set_array(self.crystal.ravel())
         ax.set_title("Time=%d" % i)
         ax.axis("tight")
         fig.savefig(f"Animation/{i:04d}.png")
 
     # make a single plot
-    def savePlot(self, crystal, i, lattice):
+    def savePlot(self, i):
         fig, ax = plt.subplots(1, 1)
         ax.set_xticks([])
         ax.set_yticks([])
-        X, Y = meshgrid(range(lattice), range(lattice))
-        ax.pcolormesh(X, Y, crystal, cmap=plt.cm.binary)
+        X, Y = meshgrid(range(self.lattice), range(self.lattice))
+        ax.pcolormesh(X, Y, self.crystal, cmap=plt.cm.binary)
         ax.set_title("Time=%d" % i)
         ax.axis("tight")
-        fig.savefig(f"Animation/{i:04d}.png")
-
-    # save tri plot
-    def savePlotTri(self, f, crystal, i, lattice, n_):
-        y = linspace(0, lattice * sqrt(3.0) / 2.0, lattice + 1)
-        x = []
-        for yi, yy in enumerate(y):
-            if self.IsEven(yi):
-                if self.IsEven(lattice):
-                    xx = linspace(
-                        0.5, 0.5 + (lattice / 2.0), int(round((lattice / 2) + 1))
-                    )
-                else:
-                    xx = linspace(
-                        0.5,
-                        0.5 + ((lattice - 1) / 2.0),
-                        int(round(((lattice - 1) / 2) + 1)),
-                    )
-            else:
-                if self.IsEven(lattice):
-                    xx = linspace(0, (lattice / 2.0), int(round((lattice / 2) + 1)))
-                else:
-                    xx = linspace(
-                        0, ((lattice + 1) / 2.0), int(round(((lattice + 1) / 2) + 1))
-                    )
-            x.append(xx)
-        xy = []
-        for ii in range(0, len(y)):
-            xx = x[ii]
-            yy = y[ii]
-            for j in range(0, len(xx)):
-                xy.append([xx[j], yy])
-        xy = asarray(xy)
-        xx = xy[:, 0]
-        yy = xy[:, 1]
-        triangulation = tri.Triangulation(xx, yy)
-
-        triangles = triangulation.triangles
-        countervalue = []
-        for triangle in triangles:
-            if any(count > 1 for count in Counter(xx[triangle]).values()):
-                countervalue.append(False)
-            else:
-                countervalue.append(True)
-        triangles = [
-            triangles[ii] for ii in range(0, len(triangles)) if countervalue[ii]
-        ]
-        triangulation.triangles = triangles
-
-        better_triangles = []
-        for triangle in triangles:
-            xtri = round(xx[triangle] / 0.5).astype(int)
-            ytri = round(yy[triangle] / (sqrt(3.0) / 2.0)).astype(int)
-            tricoos = [[xtri[ii], ytri[ii]] for ii in range(3)]
-            better_triangles.append(tricoos)
-
-        crystallist = []
-        my_tri_list = []
-        for ii in range(lattice):
-            for j in range(lattice):
-                crystallist.append(crystal[ii, j])
-                corners = self.CornersFromXY(ii, j)
-                for k in range(len(better_triangles)):
-                    if (
-                        (corners[0] in better_triangles[k])
-                        and (corners[1] in better_triangles[k])
-                        and (corners[2] in better_triangles[k])
-                    ):
-                        my_tri_list.append(k)
-                        break
-
-        facecolors = empty(len(triangles))
-        facecolors[:] = nan
-        for ii in range(len(crystallist)):
-            facecolors[my_tri_list[ii]] = crystallist[ii]
-
-        fig, sp = plt.subplot(1, 1)
-        sp.tripcolor(triangulation, facecolors=facecolors, cmap=plt.cm.binary)
-        sp.triplot(triangulation, lw=0.5, color="k")
-        sp.set_xticks([])
-        sp.set_yticks([])
-        sp.set_title("Time=%d" % i)
-        sp.axis("tight")
         fig.savefig(f"Animation/{i:04d}.png")
