@@ -360,3 +360,8 @@ def M(self):
 #### Results - Phase transition in hexagonal antiferromagnetism
 
 ![center height:500px](Ising/Results/Antiferro_Hex_Energy_Fit.png)
+
+---
+
+![bg height:500px](Ising/Ortho_Ferro.gif)
+![bg height:500px](Ising/Ferro_Hex.gif)
