@@ -1,8 +1,8 @@
 # Computational-Physics
 This is the repo for my projects in the computational Physics course with Prof. Lymperakis.
-# Ising
+## Ising
 This is an ising model for Ferromagnetic and Antiferromagnetic materials in both hexagonal and orthogonal mesh.
-# Hydrogen
+## Hydrogen
 This is a model of Hydrogen states, by solving the Schroedinger equation.
-# Presentations
+## Presentations
 To convert the Ising.md/Hydrogen.md files to presentations use MARP.
