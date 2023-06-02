@@ -69,6 +69,7 @@ Where σ represents the set of all possible spin configurations and $\beta\equiv
 ### Orthogonal lattice
 (x-1,y), (x+1,y), (x,y-1), (x,y+1)
 <br/>
+
 ### Hexagonal lattice
 ###### If x even
 (x-1,y), (x+1,y), (x,y-1), (x,y+1), (x-1,y-1), (x+1,y-1)
